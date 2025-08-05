@@ -1,2 +1,2 @@
 # hy_d_eu_bot
-Telegram-бот помощник по ЗОЖ если ты СДВГшная ленивая херня с кучей болячек и нулем мотиватион
+Telegram-bot helper for ZOZh-life IF you SDVGshnaya lenivaya ASS with kucha bolyachek and zero motivation
