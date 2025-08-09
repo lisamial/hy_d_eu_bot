@@ -72,16 +72,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Начнем с роста (в см)"
     )
     h = update.message.text 
-    print(h)
     await update.message.reply_text("Вес (в кг):")
     w = update.message.text
-    print(w)
     await update.message.reply_text("Сейчас самое сложное:\n\n" \
                                     "Нужны твои замеры (в см) \n\n" \
                                     "Отправь через /: обхват бедер/ обхват талии/ обхват груди/ обхват плеча/ обхват ляжки")
     paramStr = update.message.text
     param = paramStr.split("/")
-    print(param)
     return HEIGHT
 
 # HEIGHT
