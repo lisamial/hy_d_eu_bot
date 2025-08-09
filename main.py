@@ -1,6 +1,8 @@
 import os
 import psycopg2
 
+from psycopg2.extras import RealDictCursor
+from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
@@ -30,6 +32,37 @@ TRACKER_OPTIONS = [
     ["🤕 Головная боль"],
 ]
 
+def get_bd_connection():
+    """Функция для получения соединения с базой данных."""
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+# Функция для логирования таблеток
+def log_tablets(user_id, tablet_name):
+    conn = get_bd_connection()
+    cur = conn.cursor()
+    date = datetime.now()
+
+    cur.execute(
+        "INSERT INTO tablets (user_id, tablet_name, date) VALUES (%s, %s, %s)",
+        (user_id, tablet_name, date)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def log_pain(user_id, pain, painkillers, result_pain):
+    conn = get_bd_connection()
+    cur = conn.cursor()
+    date = datetime.now()
+    cur.execute(
+        "INSERT INTO pain (user_id, pain, painkillers, result_pain, date) VALUES (%s, %s, %s, %s, %s)",
+        (user_id, pain, painkillers, result_pain, date)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 # START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -42,25 +75,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # HEIGHT
 async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["height"] = update.message.text
-    await update.message.reply_text("Отлишно! А теперь твой вес (в кг)")
+    await update.message.edit_text("Отлишно! А теперь твой вес (в кг)")
     return WEIGHT
 
 # WEIGHT
 async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["weight"] = update.message.text
-    await update.message.reply_text("Супер! Напиши свои объёмы (грудь/талия/бедра)")
+    await update.message.edit_text("Супер! Напиши свои объёмы (грудь/талия/бедра)")
     return VOLUMES
 
 # VOLUMES
 async def get_volumes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["volumes"] = update.message.text
-    await update.message.reply_text("Укажи дату старта (например: 05.08.2025)")
+    await update.message.edit_text("Укажи дату старта (например: 05.08.2025)")
     return START_DATE
 
 # START DATE
 async def get_start_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["start_date"] = update.message.text
-    await update.message.reply_text(
+    await update.message.edit_text(
         "Теперь выбери, что ты хочешь отслеживать 📝",
         reply_markup=ReplyKeyboardMarkup(TRACKER_OPTIONS, one_time_keyboard=True, resize_keyboard=True)
     )
@@ -77,7 +110,7 @@ async def select_trackers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if tracker not in context.user_data["trackers"]:
         context.user_data["trackers"].append(tracker)
 
-    await update.message.reply_text(
+    await update.message.edit_text(
         f"Добавлено: {tracker}\n\n"
         f"Можешь выбрать ещё или напиши «Готово», когда всё выберешь"
     )
@@ -88,7 +121,7 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_data[user_id] = context.user_data.copy()
 
-    await update.message.reply_text(
+    await update.message.edit_text(
         "🎉 Готово! Я запомнил твои параметры и выбранные функции.\n"
         "Скоро начнём отслеживание 💚"
     )
@@ -96,7 +129,7 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # CANCEL
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Настройка отменена. Напиши /start, чтобы начать заново.")
+    await update.message.edit_text("Настройка отменена. Напиши /start, чтобы начать заново.")
     return ConversationHandler.END
 
 
