@@ -65,11 +65,23 @@ def log_pain(user_id, pain, painkillers, result_pain):
 
 # START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    date = datetime.now()
     await update.message.reply_text(
         "Привет! Я твой ЗОЖ-бот-компаньон 💪\n\n"
         "Сейчас нужно заполнить эту скушную херню, ты знаешь типо вес, рост, размер your ASS. \n\n"
         "Начнем с роста (в см)"
     )
+    h = update.message.text 
+    print(h)
+    await update.message.reply_text("Вес (в кг):")
+    w = update.message.text
+    print(w)
+    await update.message.reply_text("Сейчас самое сложное:\n\n" \
+                                    "Нужны твои замеры (в см) \n\n" \
+                                    "Отправь через /: обхват бедер/ обхват талии/ обхват груди/ обхват плеча/ обхват ляжки")
+    paramStr = update.message.text
+    param = paramStr.split("/")
+    print(param)
     return HEIGHT
 
 # HEIGHT
@@ -134,9 +146,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == "__main__":
-    cursor.execute("SELECT version();")
-    db_version = cursor.fetchone()
-    print(f"✅ Подключено к базе: {db_version}")
+   
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
