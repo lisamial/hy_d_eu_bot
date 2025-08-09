@@ -71,9 +71,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Сейчас нужно заполнить эту скушную херню, ты знаешь типо вес, рост, размер your ASS. \n\n"
         "Начнем с роста (в см)"
     )
-    h = update.message.text 
+    await h = update.message.text 
     await update.message.reply_text("Вес (в кг):")
-    w = update.message.text
+    await w = update.message.text
     await update.message.reply_text("Сейчас самое сложное:\n\n" \
                                     "Нужны твои замеры (в см) \n\n" \
                                     "Отправь через /: обхват бедер/ обхват талии/ обхват груди/ обхват плеча/ обхват ляжки")
