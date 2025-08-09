@@ -1,4 +1,6 @@
 import os
+import psycopg2
+
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
@@ -10,6 +12,10 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN_RW")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
 
 # Этапы диалога
 (HEIGHT, WEIGHT, VOLUMES, START_DATE, SELECT_TRACKERS) = range(5)
@@ -95,6 +101,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == "__main__":
+    cursor.execute("SELECT version();")
+    db_version = cursor.fetchone()
+    print(f"✅ Подключено к базе: {db_version}")
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
