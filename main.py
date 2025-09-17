@@ -1,212 +1,223 @@
 import os
-import psycopg2
-
-from psycopg2.extras import RealDictCursor
+import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    ConversationHandler,
-    filters,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-BOT_TOKEN = "8253855152:AAFm4wNtc5p12t3Y3TXGEaTcib2QUVs9KS0" #os.environ.get("BOT_TOKEN_RW")
-DATABASE_URL = "postgresql://postgres:TjbTSYOaJuBQcfvJrmomppQUMXcIFfUV@metro.proxy.rlwy.net:31874/railway"  # or use
-#os.getenv("DATABASE_URL")
+GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1JImz1gXRHDnp7CtUdxUUsQRtgafJwzdwA_PE4sokNdU/edit?usp=sharing"
 
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
+def get_sheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds_dict = json.loads(GOOGLE_CREDENTIALS_JSON)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sh = client.open_by_url(GOOGLE_SHEET_URL)
+    return sh.sheet1  # Первый лист
 
-# Этапы диалога
-(HEIGHT, WEIGHT, VOLUMES, START_DATE, SELECT_TRACKERS) = range(5)
+def log_daily_data(
+    date_str: str,
+    venlafaxine_morning: bool,
+    venlafaxine_evening: bool,
+    anaprilin_morning: bool,
+    anaprilin_evening: bool,
+    hormon: bool,
+    iron: bool,
+    vitamins: bool,
+    headache: bool,
+    painkiller: bool,
+    recovered: bool
+):
+    ws = get_sheet()
+    # Подготавливаем строку в соответствие с колонками
+    row = [
+        date_str,
+        "1" if venlafaxine_morning else "",  # если принимала — 1, иначе пусто
+        "1" if venlafaxine_evening else "",
+        "1" if anaprilin_morning else "",
+        "1" if anaprilin_evening else "",
+        "1" if hormon else "",
+        "1" if iron else "",
+        "1" if vitamins else "",
+        "Да" if headache else "Нет",
+        "Да" if painkiller else "Нет",
+        "Да" if recovered else "Нет"
+    ]
+    ws.append_row(row)
 
-# Временное хранилище пользователей
-user_data = {}
+# ---------- Бот ------------
 
-# Кнопки для выбора функционала
-TRACKER_OPTIONS = [
-    ["💧 Вода", "⚡ Зарядка"],
-    ["💊 Таблетки", "🍽️ Меню"],
-    ["🤕 Головная боль"],
-]
-
-def get_bd_connection():
-    """Функция для получения соединения с базой данных."""
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-
-# Функция для логирования таблеток
-def log_tablets(user_id, tablet_name):
-    conn = get_bd_connection()
-    cur = conn.cursor()
-    date = datetime.now()
-
-    cur.execute(
-        "INSERT INTO tablets (user_id, tablet_name, date) VALUES (%s, %s, %s)",
-        (user_id, tablet_name, date)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def log_pain(user_id, pain, painkillers, result_pain):
-    conn = get_bd_connection()
-    cur = conn.cursor()
-    date = datetime.now()
-    cur.execute(
-        "INSERT INTO pain (user_id, pain, painkillers, result_pain, date) VALUES (%s, %s, %s, %s, %s)",
-        (user_id, pain, painkillers, result_pain, date)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def insert_user_data(user_id, height, weight, waist, hips, breast, arm, leg):
-    date = datetime.now()
-    conn = get_bd_connection()
-    cur = conn.cursor()
-    date = datetime.now()
-    cur.execute(
-        "INSERT INTO users (telegram_id, height, start_weight, start_waist, start_hips, start_breast, start_arm, start_leg, start_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-        (user_id, height, weight, waist, hips, breast, arm, leg, date)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    
-
-# START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    step = context.user_data.get("step", 0)
-    height = context.user_data.get("height", 0)
-    weight = context.user_data.get("weight", 0)
-    waist = context.user_data.get("waist", 0)
-    hips = context.user_data.get("hips", 0)
-    breast = context.user_data.get("breast", 0)
-    arm = context.user_data.get("arm", 0)
-    leg = context.user_data.get("leg", 0)
+    keyboard = [
+        [InlineKeyboardButton("Заполнить дневные данные", callback_data="daily_data")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Привет! Хочешь ввести данные за сегодня?", reply_markup=reply_markup)
+
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "daily_data":
+        # Сначала спросим про утро / вечер таблетки: Венлафаксин утра
+        keyboard = [
+            [InlineKeyboardButton("Утро – Венлафаксин", callback_data="venlaf_morn_yes"),
+             InlineKeyboardButton("Утро – Венлафаксин нет", callback_data="venlaf_morn_no")]
+        ]
+        await query.edit_message_text("Приняла ли Венлафаксин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["venlaf_morn_yes", "venlaf_morn_no"]:
+        context.user_data["venlaf_morning"] = (query.data == "venlaf_morn_yes")
+        # Продолжаем: Венлафаксин вечером
+        keyboard = [
+            [InlineKeyboardButton("Вечер – Венлафаксин", callback_data="venlaf_even_yes"),
+             InlineKeyboardButton("Вечер – Венлафаксин нет", callback_data="venlaf_even_no")]
+        ]
+        await query.edit_message_text("Приняла ли Венлафаксин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["venlaf_even_yes", "venlaf_even_no"]:
+        context.user_data["venlaf_evening"] = (query.data == "venlaf_even_yes")
+        # Спросим про Анаприлин утром
+        keyboard = [
+            [InlineKeyboardButton("Утро – Анаприлин", callback_data="anapr_morn_yes"),
+             InlineKeyboardButton("Утро – Анаприлин нет", callback_data="anapr_morn_no")]
+        ]
+        await query.edit_message_text("Приняла ли Анаприлин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["anapr_morn_yes", "anapr_morn_no"]:
+        context.user_data["anaprilin_morning"] = (query.data == "anapr_morn_yes")
+        # Анаприлин вечером
+        keyboard = [
+            [InlineKeyboardButton("Вечер – Анаприлин", callback_data="anapr_even_yes"),
+             InlineKeyboardButton("Вечер – Анаприлин нет", callback_data="anapr_even_no")]
+        ]
+        await query.edit_message_text("Приняла ли Анаприлин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["anapr_even_yes", "anapr_even_no"]:
+        context.user_data["anaprilin_evening"] = (query.data == "anapr_even_yes")
+        # Гормон
+        keyboard = [
+            [InlineKeyboardButton("Приняла гормон?", callback_data="hormon_yes"),
+             InlineKeyboardButton("Нет", callback_data="hormon_no")]
+        ]
+        await query.edit_message_text("Приняла гормон?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["hormon_yes", "hormon_no"]:
+        context.user_data["hormon"] = (query.data == "hormon_yes")
+        # Железо
+        keyboard = [
+            [InlineKeyboardButton("Приняла железо?", callback_data="iron_yes"),
+             InlineKeyboardButton("Нет", callback_data="iron_no")]
+        ]
+        await query.edit_message_text("Приняла железо?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["iron_yes", "iron_no"]:
+        context.user_data["iron"] = (query.data == "iron_yes")
+        # Витамины
+        keyboard = [
+            [InlineKeyboardButton("Приняла витамины?", callback_data="vitamins_yes"),
+             InlineKeyboardButton("Нет", callback_data="vitamins_no")]
+        ]
+        await query.edit_message_text("Приняла витамины?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["vitamins_yes", "vitamins_no"]:
+        context.user_data["vitamins"] = (query.data == "vitamins_yes")
+        # Спрашиваем про головную боль
+        keyboard = [
+            [InlineKeyboardButton("Голова болела", callback_data="headache_yes"),
+             InlineKeyboardButton("Не болела", callback_data="headache_no")]
+        ]
+        await query.edit_message_text("Болела ли голова сегодня?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data in ["headache_yes", "headache_no"]:
+        context.user_data["headache"] = (query.data == "headache_yes")
+        # Если болела - спрашиваем про обезбол и результат
+        if context.user_data["headache"]:
+            keyboard = [
+                [InlineKeyboardButton("Пила обезбол", callback_data="painkiller_yes"),
+                 InlineKeyboardButton("Не пила", callback_data="painkiller_no")]
+            ]
+            await query.edit_message_text("Приняла ли обезболивающее?", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            context.user_data["painkiller"] = False
+            context.user_data["recovered"] = False
+            # Записываем сразу и завершаем
+            date_str = datetime.now().strftime("%d.%m.%Y")
+            log_daily_data(
+                date_str,
+                venlafaxine_morning=context.user_data.get("venlaf_morning", False),
+                venlafaxine_evening=context.user_data.get("venlaf_evening", False),
+                anaprilin_morning=context.user_data.get("anaprilin_morning", False),
+                anaprilin_evening=context.user_data.get("anaprilin_evening", False),
+                hormon=context.user_data.get("hormon", False),
+                iron=context.user_data.get("iron", False),
+                vitamins=context.user_data.get("vitamins", False),
+                headache=False,
+                painkiller=False,
+                recovered=False
+            )
+            await query.edit_message_text("✅ Всё записано за сегодня!")
     
-    # height, weight, waist, hips, breast, arm, leg
-    if step == 0:
-        await update.message.reply_text(
-                "Привет! Я твой ЗОЖ-бот-компаньон 💪\n\n"
-                "Сейчас нужно заполнить эту скушную херню, ты знаешь типо вес, рост, размер your ASS. \n\n"
-                "Начнем с роста (в см)"
+    elif query.data in ["painkiller_yes", "painkiller_no"]:
+        took = (query.data == "painkiller_yes")
+        context.user_data["painkiller"] = took
+        if took:
+            # спрашиваем, помог ли обезбол
+            keyboard = [
+                [InlineKeyboardButton("Прошла", callback_data="recovered_yes"),
+                 InlineKeyboardButton("Не прошла", callback_data="recovered_no")]
+            ]
+            await query.edit_message_text("Обезбол помог?", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            context.user_data["recovered"] = False
+            # записываем сразу
+            date_str = datetime.now().strftime("%d.%m.%Y")
+            log_daily_data(
+                date_str,
+                venlafaxine_morning=context.user_data.get("venlaf_morning", False),
+                venlafaxine_evening=context.user_data.get("venlaf_evening", False),
+                anaprilin_morning=context.user_data.get("anaprilin_morning", False),
+                anaprilin_evening=context.user_data.get("anaprilin_evening", False),
+                hormon=context.user_data.get("hormon", False),
+                iron=context.user_data.get("iron", False),
+                vitamins=context.user_data.get("vitamins", False),
+                headache=True,
+                painkiller=False,
+                recovered=False
+            )
+            await query.edit_message_text("✅ Всё записано за сегодня!")
+    
+    elif query.data in ["recovered_yes", "recovered_no"]:
+        recon = (query.data == "recovered_yes")
+        context.user_data["recovered"] = recon
+        date_str = datetime.now().strftime("%d.%m.%Y")
+        log_daily_data(
+            date_str,
+            venlafaxine_morning=context.user_data.get("venlaf_morning", False),
+            venlafaxine_evening=context.user_data.get("venlaf_evening", False),
+            anaprilin_morning=context.user_data.get("anaprilin_morning", False),
+            anaprilin_evening=context.user_data.get("anaprilin_evening", False),
+            hormon=context.user_data.get("hormon", False),
+            iron=context.user_data.get("iron", False),
+            vitamins=context.user_data.get("vitamins", False),
+            headache=True,
+            painkiller=True,
+            recovered=recon
         )
-        context.user_data["step"] = 1
-    elif step == 1:    
-        height = update.message.text 
-        await update.message.reply_text("Вес (в кг):")
-        context.user_data["step"] = 2
-    elif step == 2:
-        weight = update.message.text
-        await update.message.reply_text(
-            "Сейчас самое сложное:\n\n" 
-            "Нужны твои замеры (в см) \n\n" 
-            "Отправь через /: обхват талии/ обхват бедер/ обхват груди/ обхват плеча/ обхват ляжки"
-        )
-        context.user_data["step"] = 3
-    else: 
-        paramStr = update.message.text
-        param = paramStr.split("/")
-        if param:
-            insert_user_data()
-        waist = param[0]
-        hips = param[1]
-        breast = param[2]
-        arm = param[3]
-        leg = param[4]
+        await query.edit_message_text("✅ Всё записано за сегодня!")
 
-
-
-
-async def printMess(update: Update, context: ContextTypes.DEFAULT_TYPE, text):
-    await update.message.reply_text(text)
-    return update.message.text
-
-
-# HEIGHT
-async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["height"] = update.message.text
-    await update.message.edit_text("Отлишно! А теперь твой вес (в кг)")
-    return WEIGHT
-
-# WEIGHT
-async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["weight"] = update.message.text
-    await update.message.edit_text("Супер! Напиши свои объёмы (грудь/талия/бедра)")
-    return VOLUMES
-
-# VOLUMES
-async def get_volumes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["volumes"] = update.message.text
-    await update.message.edit_text("Укажи дату старта (например: 05.08.2025)")
-    return START_DATE
-
-# START DATE
-async def get_start_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["start_date"] = update.message.text
-    await update.message.edit_text(
-        "Теперь выбери, что ты хочешь отслеживать 📝",
-        reply_markup=ReplyKeyboardMarkup(TRACKER_OPTIONS, one_time_keyboard=True, resize_keyboard=True)
-    )
-    return SELECT_TRACKERS
-
-# SELECT TRACKERS
-async def select_trackers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    tracker = update.message.text
-
-    if "trackers" not in context.user_data:
-        context.user_data["trackers"] = []
-
-    if tracker not in context.user_data["trackers"]:
-        context.user_data["trackers"].append(tracker)
-
-    await update.message.edit_text(
-        f"Добавлено: {tracker}\n\n"
-        f"Можешь выбрать ещё или напиши «Готово», когда всё выберешь"
-    )
-    return SELECT_TRACKERS
-
-# DONE
-async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    user_data[user_id] = context.user_data.copy()
-
-    await update.message.edit_text(
-        "🎉 Готово! Я запомнил твои параметры и выбранные функции.\n"
-        "Скоро начнём отслеживание 💚"
-    )
-    return ConversationHandler.END
-
-# CANCEL
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.edit_text("Настройка отменена. Напиши /start, чтобы начать заново.")
-    return ConversationHandler.END
-
+# ------------- Запуск -------------
 
 if __name__ == "__main__":
-   
-    get_bd_connection()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            HEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_height)],
-            WEIGHT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_weight)],
-            VOLUMES: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_volumes)],
-            START_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_start_date)],
-            SELECT_TRACKERS: [
-                MessageHandler(filters.Regex("^(💧 Вода|⚡ Зарядка|💊 Таблетки|🍽️ Меню|🤕 Головная боль)$"), select_trackers),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, finish_setup),
-            ],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    app.add_handler(conv_handler)
+    TOKEN = os.getenv("BOT_TOKEN_RW")
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(handle_buttons))
     app.run_polling()
