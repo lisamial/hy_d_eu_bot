@@ -68,8 +68,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "daily_data":
         # Сначала спросим про утро / вечер таблетки: Венлафаксин утра
         keyboard = [
-            [InlineKeyboardButton("Утро – Венлафаксин", callback_data="venlaf_morn_yes"),
-             InlineKeyboardButton("Утро – Венлафаксин нет", callback_data="venlaf_morn_no")]
+            [InlineKeyboardButton("Да", callback_data="venlaf_morn_yes"),
+             InlineKeyboardButton("Нет", callback_data="venlaf_morn_no")]
         ]
         await query.edit_message_text("Приняла ли Венлафаксин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -77,8 +77,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["venlaf_morning"] = (query.data == "venlaf_morn_yes")
         # Продолжаем: Венлафаксин вечером
         keyboard = [
-            [InlineKeyboardButton("Вечер – Венлафаксин", callback_data="venlaf_even_yes"),
-             InlineKeyboardButton("Вечер – Венлафаксин нет", callback_data="venlaf_even_no")]
+            [InlineKeyboardButton("Да", callback_data="venlaf_even_yes"),
+             InlineKeyboardButton("Нет", callback_data="venlaf_even_no")]
         ]
         await query.edit_message_text("Приняла ли Венлафаксин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -86,8 +86,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["venlaf_evening"] = (query.data == "venlaf_even_yes")
         # Спросим про Анаприлин утром
         keyboard = [
-            [InlineKeyboardButton("Утро – Анаприлин", callback_data="anapr_morn_yes"),
-             InlineKeyboardButton("Утро – Анаприлин нет", callback_data="anapr_morn_no")]
+            [InlineKeyboardButton("Да", callback_data="anapr_morn_yes"),
+             InlineKeyboardButton("Нет", callback_data="anapr_morn_no")]
         ]
         await query.edit_message_text("Приняла ли Анаприлин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -95,8 +95,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["anaprilin_morning"] = (query.data == "anapr_morn_yes")
         # Анаприлин вечером
         keyboard = [
-            [InlineKeyboardButton("Вечер – Анаприлин", callback_data="anapr_even_yes"),
-             InlineKeyboardButton("Вечер – Анаприлин нет", callback_data="anapr_even_no")]
+            [InlineKeyboardButton("Да", callback_data="anapr_even_yes"),
+             InlineKeyboardButton("Нет", callback_data="anapr_even_no")]
         ]
         await query.edit_message_text("Приняла ли Анаприлин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -104,7 +104,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["anaprilin_evening"] = (query.data == "anapr_even_yes")
         # Гормон
         keyboard = [
-            [InlineKeyboardButton("Приняла гормон?", callback_data="hormon_yes"),
+            [InlineKeyboardButton("Да", callback_data="hormon_yes"),
              InlineKeyboardButton("Нет", callback_data="hormon_no")]
         ]
         await query.edit_message_text("Приняла гормон?", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -113,7 +113,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["hormon"] = (query.data == "hormon_yes")
         # Железо
         keyboard = [
-            [InlineKeyboardButton("Приняла железо?", callback_data="iron_yes"),
+            [InlineKeyboardButton("Да", callback_data="iron_yes"),
              InlineKeyboardButton("Нет", callback_data="iron_no")]
         ]
         await query.edit_message_text("Приняла железо?", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -122,7 +122,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["iron"] = (query.data == "iron_yes")
         # Витамины
         keyboard = [
-            [InlineKeyboardButton("Приняла витамины?", callback_data="vitamins_yes"),
+            [InlineKeyboardButton("Да", callback_data="vitamins_yes"),
              InlineKeyboardButton("Нет", callback_data="vitamins_no")]
         ]
         await query.edit_message_text("Приняла витамины?", reply_markup=InlineKeyboardMarkup(keyboard))
