@@ -66,6 +66,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "daily_data":
+        await query.answer()
         # Сначала спросим про утро / вечер таблетки: Венлафаксин утра
         keyboard = [
             [InlineKeyboardButton("Да", callback_data="venlaf_morn_yes"),
@@ -74,6 +75,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла ли Венлафаксин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["venlaf_morn_yes", "venlaf_morn_no"]:
+        await query.answer()
         context.user_data["venlaf_morning"] = (query.data == "venlaf_morn_yes")
         # Продолжаем: Венлафаксин вечером
         keyboard = [
@@ -83,6 +85,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла ли Венлафаксин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["venlaf_even_yes", "venlaf_even_no"]:
+        await query.answer()
         context.user_data["venlaf_evening"] = (query.data == "venlaf_even_yes")
         # Спросим про Анаприлин утром
         keyboard = [
@@ -92,6 +95,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла ли Анаприлин утром?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["anapr_morn_yes", "anapr_morn_no"]:
+        await query.answer()
         context.user_data["anaprilin_morning"] = (query.data == "anapr_morn_yes")
         # Анаприлин вечером
         keyboard = [
@@ -101,6 +105,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла ли Анаприлин вечером?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["anapr_even_yes", "anapr_even_no"]:
+        await query.answer()
         context.user_data["anaprilin_evening"] = (query.data == "anapr_even_yes")
         # Гормон
         keyboard = [
@@ -110,6 +115,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла гормон?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["hormon_yes", "hormon_no"]:
+        await query.answer()
         context.user_data["hormon"] = (query.data == "hormon_yes")
         # Железо
         keyboard = [
@@ -119,6 +125,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла железо?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["iron_yes", "iron_no"]:
+        await query.answer()
         context.user_data["iron"] = (query.data == "iron_yes")
         # Витамины
         keyboard = [
@@ -128,6 +135,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Приняла витамины?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["vitamins_yes", "vitamins_no"]:
+        await query.answer()
         context.user_data["vitamins"] = (query.data == "vitamins_yes")
         # Спрашиваем про головную боль
         keyboard = [
@@ -137,6 +145,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Болела ли голова сегодня?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data in ["headache_yes", "headache_no"]:
+        await query.answer()
         context.user_data["headache"] = (query.data == "headache_yes")
         # Если болела - спрашиваем про обезбол и результат
         if context.user_data["headache"]:
@@ -166,6 +175,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("✅ Всё записано за сегодня!")
     
     elif query.data in ["painkiller_yes", "painkiller_no"]:
+        await query.answer()
         took = (query.data == "painkiller_yes")
         context.user_data["painkiller"] = took
         if took:
