@@ -13,8 +13,9 @@ from telegram.ext import (
     filters,
 )
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN_RW")
-DATABASE_URL = os.getenv("DATABASE_URL")
+BOT_TOKEN = "8253855152:AAFm4wNtc5p12t3Y3TXGEaTcib2QUVs9KS0" #os.environ.get("BOT_TOKEN_RW")
+DATABASE_URL = "postgresql://postgres:TjbTSYOaJuBQcfvJrmomppQUMXcIFfUV@metro.proxy.rlwy.net:31874/railway"  # or use
+#os.getenv("DATABASE_URL")
 
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
@@ -62,24 +63,69 @@ def log_pain(user_id, pain, painkillers, result_pain):
     cur.close()
     conn.close()
 
+def insert_user_data(user_id, height, weight, waist, hips, breast, arm, leg):
+    date = datetime.now()
+    conn = get_bd_connection()
+    cur = conn.cursor()
+    date = datetime.now()
+    cur.execute(
+        "INSERT INTO users (telegram_id, height, start_weight, start_waist, start_hips, start_breast, start_arm, start_leg, start_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (user_id, height, weight, waist, hips, breast, arm, leg, date)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    
 
 # START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    date = datetime.now()
-    await update.message.reply_text(
-        "Привет! Я твой ЗОЖ-бот-компаньон 💪\n\n"
-        "Сейчас нужно заполнить эту скушную херню, ты знаешь типо вес, рост, размер your ASS. \n\n"
-        "Начнем с роста (в см)"
-    )
-    await h = update.message.text 
-    await update.message.reply_text("Вес (в кг):")
-    await w = update.message.text
-    await update.message.reply_text("Сейчас самое сложное:\n\n" \
-                                    "Нужны твои замеры (в см) \n\n" \
-                                    "Отправь через /: обхват бедер/ обхват талии/ обхват груди/ обхват плеча/ обхват ляжки")
-    paramStr = update.message.text
-    param = paramStr.split("/")
-    return HEIGHT
+    step = context.user_data.get("step", 0)
+    height = context.user_data.get("height", 0)
+    weight = context.user_data.get("weight", 0)
+    waist = context.user_data.get("waist", 0)
+    hips = context.user_data.get("hips", 0)
+    breast = context.user_data.get("breast", 0)
+    arm = context.user_data.get("arm", 0)
+    leg = context.user_data.get("leg", 0)
+    
+    # height, weight, waist, hips, breast, arm, leg
+    if step == 0:
+        await update.message.reply_text(
+                "Привет! Я твой ЗОЖ-бот-компаньон 💪\n\n"
+                "Сейчас нужно заполнить эту скушную херню, ты знаешь типо вес, рост, размер your ASS. \n\n"
+                "Начнем с роста (в см)"
+        )
+        context.user_data["step"] = 1
+    elif step == 1:    
+        height = update.message.text 
+        await update.message.reply_text("Вес (в кг):")
+        context.user_data["step"] = 2
+    elif step == 2:
+        weight = update.message.text
+        await update.message.reply_text(
+            "Сейчас самое сложное:\n\n" 
+            "Нужны твои замеры (в см) \n\n" 
+            "Отправь через /: обхват талии/ обхват бедер/ обхват груди/ обхват плеча/ обхват ляжки"
+        )
+        context.user_data["step"] = 3
+    else: 
+        paramStr = update.message.text
+        param = paramStr.split("/")
+        if param:
+            insert_user_data()
+        waist = param[0]
+        hips = param[1]
+        breast = param[2]
+        arm = param[3]
+        leg = param[4]
+
+
+
+
+async def printMess(update: Update, context: ContextTypes.DEFAULT_TYPE, text):
+    await update.message.reply_text(text)
+    return update.message.text
+
 
 # HEIGHT
 async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,6 +190,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
    
+    get_bd_connection()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
